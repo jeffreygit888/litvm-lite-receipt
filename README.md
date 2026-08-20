@@ -4,6 +4,10 @@ LiteReceipt is a minimal Web3 receipt-proof dApp deployed on the LitVM LiteForge
 
 It allows a user to hash a human-readable reference locally in the browser, store that hash on-chain, and later verify whether a receipt ID matches the same reference.
 
+## Live demo
+
+https://jeffreygit888.github.io/litvm-lite-receipt/
+
 ## Network
 
 - Network: LitVM LiteForge
@@ -41,23 +45,36 @@ Files:
 - `frontend/index.html`
 - `frontend/app.js`
 - `frontend/style.css`
+- `docs/` contains the GitHub Pages deployment
 
-To test locally, serve the `frontend` directory with any static HTTP server, then open it in a browser with MetaMask installed and connected to LitVM LiteForge.
-
-Example using Python:
+To test locally:
 
 ```bash
 cd frontend
 python -m http.server 8080
 ```
 
-Then open `http://localhost:8080`.
+Then open `http://localhost:8080` with MetaMask connected to LitVM LiteForge.
 
 ## Testnet deployment
 
-The current LiteReceipt deployment was created on LitVM LiteForge and has already been used to create an initial receipt transaction.
+LiteReceipt is deployed and operational on LitVM LiteForge. The deployment has been tested end-to-end through both Remix and the public dApp:
 
-This repository is intended as a small LitVM builder/testnet project demonstrating contract deployment, wallet interaction, writes, and reads on Chain ID 4441.
+1. Smart contract deployment to Chain ID 4441
+2. `createReceipt` write transaction
+3. `receiptCount` and `receipts` reads
+4. Public MetaMask interaction through GitHub Pages
+5. Receipt verification returning a valid on-chain match
+
+## Builder intent
+
+LiteReceipt is a small payments-oriented proof-of-concept exploring how application references or receipt identifiers can be anchored on-chain without publishing the original reference text itself.
+
+The project is intentionally minimal for the LiteForge testnet. Possible next steps include authenticated issuers, typed receipt metadata, payment settlement references, revocation/status handling, signatures, and production-grade indexing.
+
+## Feedback from LiteForge testing
+
+The EVM-compatible workflow made it possible to deploy a Solidity contract and interact with it using standard tooling such as Remix, MetaMask, and ethers.js. The project was also successfully served as a static dApp through GitHub Pages and connected to the deployed LiteForge contract.
 
 ## Security / scope
 
