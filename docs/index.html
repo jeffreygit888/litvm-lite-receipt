@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LiteReceipt on LitVM</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <span class="badge">LitVM LiteForge · Chain ID 4441</span>
+      <h1>LiteReceipt</h1>
+      <p>Create and verify simple receipt proofs on LitVM LiteForge.</p>
+      <button id="connectBtn">Connect MetaMask</button>
+      <div id="walletStatus" class="status">Wallet not connected</div>
+    </section>
+
+    <section class="card">
+      <h2>Create receipt</h2>
+      <label for="referenceInput">Reference text</label>
+      <input id="referenceInput" placeholder="e.g. invoice-2026-0001" />
+      <button id="createBtn" disabled>Create On-chain Receipt</button>
+      <pre id="createResult"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Verify receipt</h2>
+      <label for="receiptIdInput">Receipt ID</label>
+      <input id="receiptIdInput" type="number" min="1" placeholder="1" />
+      <label for="verifyReferenceInput">Reference text</label>
+      <input id="verifyReferenceInput" placeholder="same reference used above" />
+      <button id="verifyBtn" disabled>Verify Receipt</button>
+      <pre id="verifyResult"></pre>
+    </section>
+
+    <section class="card muted">
+      <strong>Contract</strong>
+      <code>0xD31BC2817c445335306a7812b114Aa7F9Cc4b3CE</code>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
