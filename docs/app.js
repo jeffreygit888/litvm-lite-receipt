@@ -34,13 +34,27 @@ function statusText(status) {
 }
 
 function readableError(error) {
-  return error?.shortMessage || error?.info?.error?.message || error?.data?.message || error?.message || JSON.stringify(error);
+  const parts = [];
+  const add = (label, value) => {
+    if (value !== undefined && value !== null && value !== "") {
+      parts.push(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+    }
+  };
+
+  add("Message", error?.shortMessage || error?.message);
+  add("RPC", error?.info?.error?.message);
+  add("RPC code", error?.info?.error?.code);
+  add("Data", error?.info?.error?.data || error?.data);
+  add("Code", error?.code);
+
+  return parts.length ? parts.join("\n") : String(error);
 }
 
 async function ensureLiteForge() {
-  const network = await provider.getNetwork();
-  if (network.chainId !== LITEFORGE_CHAIN_ID) {
-    throw new Error(`Wrong network. Switch MetaMask to LitVM LiteForge (Chain ID 4441). Current: ${network.chainId}`);
+  const chainIdHex = await window.ethereum.request({ method: "eth_chainId" });
+  const chainId = BigInt(chainIdHex);
+  if (chainId !== LITEFORGE_CHAIN_ID) {
+    throw new Error(`Wrong network. Switch MetaMask to LitVM LiteForge (Chain ID 4441). Current: ${chainId}`);
   }
 }
 
@@ -67,17 +81,34 @@ async function connectWallet() {
 
 async function sendViaMetaMask(data) {
   await ensureLiteForge();
+
+  const txBase = {
+    from: connectedAddress,
+    to: CONTRACT_ADDRESS,
+    data,
+    value: "0x0"
+  };
+
+  let gasHex;
+  try {
+    const estimateHex = await window.ethereum.request({
+      method: "eth_estimateGas",
+      params: [txBase]
+    });
+    const estimate = BigInt(estimateHex);
+    const buffered = (estimate * 130n) / 100n + 10000n;
+    gasHex = `0x${buffered.toString(16)}`;
+  } catch (estimateError) {
+    console.error("Gas estimation failed", estimateError);
+    throw new Error(`Gas estimation failed before transaction.\n${readableError(estimateError)}`);
+  }
+
   const txHash = await window.ethereum.request({
     method: "eth_sendTransaction",
-    params: [{
-      from: connectedAddress,
-      to: CONTRACT_ADDRESS,
-      data,
-      value: "0x0",
-      gas: "0x493E0"
-    }]
+    params: [{ ...txBase, gas: gasHex }]
   });
-  return txHash;
+
+  return { txHash, gasHex };
 }
 
 async function createReceipt() {
@@ -90,20 +121,25 @@ async function createReceipt() {
 
   try {
     createBtn.disabled = true;
-    createResult.textContent = "Waiting for MetaMask confirmation...";
+    createResult.textContent = "Estimating gas...";
 
     const referenceHash = ethers.keccak256(ethers.toUtf8Bytes(reference));
     const metadataHash = metadata ? ethers.keccak256(ethers.toUtf8Bytes(metadata)) : ethers.ZeroHash;
     const data = iface.encodeFunctionData("createReceipt", [referenceHash, metadataHash]);
-    const txHash = await sendViaMetaMask(data);
+    const { txHash, gasHex } = await sendViaMetaMask(data);
 
-    createResult.textContent = `Submitted: ${txHash}\nWaiting for confirmation...`;
+    createResult.textContent = `Submitted: ${txHash}\nGas limit: ${BigInt(gasHex).toString()}\nWaiting for confirmation...`;
     const receipt = await provider.waitForTransaction(txHash);
-    const count = await contract.receiptCount();
 
+    if (!receipt || receipt.status !== 1) {
+      throw new Error(`Transaction was mined but failed. Tx: ${txHash}`);
+    }
+
+    const count = await contract.receiptCount();
     createResult.textContent = [
       `Confirmed in block ${receipt.blockNumber}`,
       `Tx: ${txHash}`,
+      `Gas limit: ${BigInt(gasHex).toString()}`,
       `Reference hash: ${referenceHash}`,
       `Metadata hash: ${metadataHash}`,
       `Current receipt count: ${count}`
@@ -177,11 +213,16 @@ async function revokeReceipt() {
 
   try {
     revokeBtn.disabled = true;
-    revokeResult.textContent = "Waiting for MetaMask confirmation...";
+    revokeResult.textContent = "Estimating gas...";
     const data = iface.encodeFunctionData("revokeReceipt", [receiptId]);
-    const txHash = await sendViaMetaMask(data);
-    revokeResult.textContent = `Submitted: ${txHash}\nWaiting for confirmation...`;
+    const { txHash, gasHex } = await sendViaMetaMask(data);
+    revokeResult.textContent = `Submitted: ${txHash}\nGas limit: ${BigInt(gasHex).toString()}\nWaiting for confirmation...`;
     const receipt = await provider.waitForTransaction(txHash);
+
+    if (!receipt || receipt.status !== 1) {
+      throw new Error(`Transaction was mined but failed. Tx: ${txHash}`);
+    }
+
     revokeResult.textContent = `Receipt ${receiptId} revoked in block ${receipt.blockNumber}\nTx: ${txHash}`;
   } catch (error) {
     console.error(error);
