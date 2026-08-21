@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LiteReceipt on LitVM</title>
+  <title>LiteReceipt V2 on LitVM</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 </head>
@@ -11,8 +11,8 @@
   <main class="container">
     <section class="hero">
       <span class="badge">LitVM LiteForge · Chain ID 4441</span>
-      <h1>LiteReceipt</h1>
-      <p>Create and verify simple receipt proofs on LitVM LiteForge.</p>
+      <h1>LiteReceipt V2</h1>
+      <p>Create, verify, inspect, and revoke privacy-friendly receipt proofs on LitVM LiteForge.</p>
       <button id="connectBtn">Connect MetaMask</button>
       <div id="walletStatus" class="status">Wallet not connected</div>
     </section>
@@ -21,6 +21,9 @@
       <h2>Create receipt</h2>
       <label for="referenceInput">Reference text</label>
       <input id="referenceInput" placeholder="e.g. invoice-2026-0001" />
+      <label for="metadataInput">Metadata text (optional)</label>
+      <input id="metadataInput" placeholder="e.g. order:12345 | amount:250000" />
+      <p class="hint">Only hashes are written on-chain. The plaintext stays in your browser.</p>
       <button id="createBtn" disabled>Create On-chain Receipt</button>
       <pre id="createResult"></pre>
     </section>
@@ -30,14 +33,31 @@
       <label for="receiptIdInput">Receipt ID</label>
       <input id="receiptIdInput" type="number" min="1" placeholder="1" />
       <label for="verifyReferenceInput">Reference text</label>
-      <input id="verifyReferenceInput" placeholder="same reference used above" />
+      <input id="verifyReferenceInput" placeholder="same reference used when creating the receipt" />
       <button id="verifyBtn" disabled>Verify Receipt</button>
       <pre id="verifyResult"></pre>
     </section>
 
+    <section class="card">
+      <h2>Inspect receipt</h2>
+      <label for="inspectIdInput">Receipt ID</label>
+      <input id="inspectIdInput" type="number" min="1" placeholder="1" />
+      <button id="inspectBtn" disabled>Get Receipt</button>
+      <pre id="inspectResult"></pre>
+    </section>
+
+    <section class="card danger-card">
+      <h2>Revoke receipt</h2>
+      <p class="hint">Only the wallet that created an active receipt can revoke it.</p>
+      <label for="revokeIdInput">Receipt ID</label>
+      <input id="revokeIdInput" type="number" min="1" placeholder="1" />
+      <button id="revokeBtn" class="danger" disabled>Revoke Receipt</button>
+      <pre id="revokeResult"></pre>
+    </section>
+
     <section class="card muted">
-      <strong>Contract</strong>
-      <code>0xD31BC2817c445335306a7812b114Aa7F9Cc4b3CE</code>
+      <strong>LiteReceipt V2 Contract</strong>
+      <code>0x2390d3B471d7c3597b7663281f73c2387889AA5E</code>
     </section>
   </main>
   <script src="app.js"></script>
