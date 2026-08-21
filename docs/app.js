@@ -6,14 +6,14 @@ const ABI = [
   "function revokeReceipt(uint256 receiptId) external",
   "function verifyReceipt(uint256 receiptId, bytes32 referenceHash) external view returns (bool)",
   "function receiptCount() external view returns (uint256)",
-  "function getReceipt(uint256 receiptId) external view returns (address sender, bytes32 referenceHash, bytes32 metadataHash, uint256 timestamp, uint8 status)",
-  "event ReceiptCreated(uint256 indexed receiptId, address indexed sender, bytes32 referenceHash, bytes32 metadataHash, uint256 timestamp)",
-  "event ReceiptRevoked(uint256 indexed receiptId, address indexed sender, uint256 timestamp)"
+  "function getReceipt(uint256 receiptId) external view returns (address sender, bytes32 referenceHash, bytes32 metadataHash, uint256 timestamp, uint8 status)"
 ];
 
 let provider;
 let signer;
 let contract;
+let connectedAddress;
+const iface = new ethers.Interface(ABI);
 
 const connectBtn = document.getElementById("connectBtn");
 const createBtn = document.getElementById("createBtn");
@@ -33,6 +33,10 @@ function statusText(status) {
   return "None";
 }
 
+function readableError(error) {
+  return error?.shortMessage || error?.info?.error?.message || error?.data?.message || error?.message || JSON.stringify(error);
+}
+
 async function ensureLiteForge() {
   const network = await provider.getNetwork();
   if (network.chainId !== LITEFORGE_CHAIN_ID) {
@@ -43,22 +47,37 @@ async function ensureLiteForge() {
 async function connectWallet() {
   try {
     if (!window.ethereum) throw new Error("MetaMask was not detected.");
-    await window.ethereum.request({ method: "eth_requestAccounts" });
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    connectedAddress = accounts[0];
     provider = new ethers.BrowserProvider(window.ethereum);
     await ensureLiteForge();
     signer = await provider.getSigner();
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-    const address = await signer.getAddress();
-    walletStatus.textContent = `Connected: ${address}`;
+    walletStatus.textContent = `Connected: ${connectedAddress}`;
     connectBtn.textContent = "Wallet Connected";
     createBtn.disabled = false;
     verifyBtn.disabled = false;
     inspectBtn.disabled = false;
     revokeBtn.disabled = false;
   } catch (error) {
-    walletStatus.textContent = error.shortMessage || error.message;
+    walletStatus.textContent = readableError(error);
   }
+}
+
+async function sendViaMetaMask(data) {
+  await ensureLiteForge();
+  const txHash = await window.ethereum.request({
+    method: "eth_sendTransaction",
+    params: [{
+      from: connectedAddress,
+      to: CONTRACT_ADDRESS,
+      data,
+      value: "0x0",
+      gas: "0x493E0"
+    }]
+  });
+  return txHash;
 }
 
 async function createReceipt() {
@@ -70,29 +89,28 @@ async function createReceipt() {
   }
 
   try {
-    await ensureLiteForge();
     createBtn.disabled = true;
     createResult.textContent = "Waiting for MetaMask confirmation...";
 
     const referenceHash = ethers.keccak256(ethers.toUtf8Bytes(reference));
-    const metadataHash = metadata
-      ? ethers.keccak256(ethers.toUtf8Bytes(metadata))
-      : ethers.ZeroHash;
+    const metadataHash = metadata ? ethers.keccak256(ethers.toUtf8Bytes(metadata)) : ethers.ZeroHash;
+    const data = iface.encodeFunctionData("createReceipt", [referenceHash, metadataHash]);
+    const txHash = await sendViaMetaMask(data);
 
-    const tx = await contract.createReceipt(referenceHash, metadataHash);
-    createResult.textContent = `Submitted: ${tx.hash}\nWaiting for confirmation...`;
-
-    const receipt = await tx.wait();
+    createResult.textContent = `Submitted: ${txHash}\nWaiting for confirmation...`;
+    const receipt = await provider.waitForTransaction(txHash);
     const count = await contract.receiptCount();
+
     createResult.textContent = [
       `Confirmed in block ${receipt.blockNumber}`,
-      `Tx: ${tx.hash}`,
+      `Tx: ${txHash}`,
       `Reference hash: ${referenceHash}`,
       `Metadata hash: ${metadataHash}`,
       `Current receipt count: ${count}`
     ].join("\n");
   } catch (error) {
-    createResult.textContent = error.shortMessage || error.message;
+    console.error(error);
+    createResult.textContent = readableError(error);
   } finally {
     createBtn.disabled = false;
   }
@@ -122,7 +140,7 @@ async function verifyReceipt() {
       `Timestamp: ${date.toISOString()}`
     ].join("\n");
   } catch (error) {
-    verifyResult.textContent = error.shortMessage || error.message;
+    verifyResult.textContent = readableError(error);
   }
 }
 
@@ -146,7 +164,7 @@ async function inspectReceipt() {
       `Timestamp: ${date.toISOString()}`
     ].join("\n");
   } catch (error) {
-    inspectResult.textContent = error.shortMessage || error.message;
+    inspectResult.textContent = readableError(error);
   }
 }
 
@@ -158,15 +176,16 @@ async function revokeReceipt() {
   }
 
   try {
-    await ensureLiteForge();
     revokeBtn.disabled = true;
     revokeResult.textContent = "Waiting for MetaMask confirmation...";
-    const tx = await contract.revokeReceipt(receiptId);
-    revokeResult.textContent = `Submitted: ${tx.hash}\nWaiting for confirmation...`;
-    const receipt = await tx.wait();
-    revokeResult.textContent = `Receipt ${receiptId} revoked in block ${receipt.blockNumber}\nTx: ${tx.hash}`;
+    const data = iface.encodeFunctionData("revokeReceipt", [receiptId]);
+    const txHash = await sendViaMetaMask(data);
+    revokeResult.textContent = `Submitted: ${txHash}\nWaiting for confirmation...`;
+    const receipt = await provider.waitForTransaction(txHash);
+    revokeResult.textContent = `Receipt ${receiptId} revoked in block ${receipt.blockNumber}\nTx: ${txHash}`;
   } catch (error) {
-    revokeResult.textContent = error.shortMessage || error.message;
+    console.error(error);
+    revokeResult.textContent = readableError(error);
   } finally {
     revokeBtn.disabled = false;
   }
